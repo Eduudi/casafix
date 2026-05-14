@@ -32,11 +32,7 @@ const DEMO_SERVICES = [
   { id: 6, name: "Marido de Aluguel", icon: "🔧", price_min: 90, category: "Geral", description: "Serviços gerais residenciais" },
 ];
 
-const DEMO_PROFESSIONALS = [
-  { id: 1, name: "João Carlos", specialty: "Eletricista", rating: 4.9, reviews: 238, available: true, badge: "top", price: 80, bio: "3 anos de experiência. Especialista em instalações e reparos. Sem antecedentes criminais." },
-  { id: 2, name: "Carlos Mendes", specialty: "Marido de Aluguel", rating: 4.7, reviews: 54, available: true, badge: "verified", price: 90, bio: "Especialista em reparos gerais e instalações residenciais." },
-  { id: 3, name: "Ana Paula", specialty: "Hidráulica", rating: 4.8, reviews: 42, available: false, badge: "verified", price: 100, bio: "Profissional certificada em instalações hidráulicas." },
-];
+
 
 const C = {
   purple: "#6B21E8",
@@ -74,7 +70,7 @@ const LogoHeart = ({ size = 48, color = "white" }) => (
 export default function App() {
   const [screen, setScreen] = useState("splash");
   const [services, setServices] = useState([]);
-  const [professionals] = useState(DEMO_PROFESSIONALS);
+  const [professionals, setProfessionals] = useState([]);
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -109,6 +105,8 @@ export default function App() {
     const data = await api("services?select=*&order=name");
     if (data && data.length > 0) setServices(data);
     else setServices(DEMO_SERVICES);
+    const pros = await api("professionals?select=*&order=name");
+    if (pros) setProfessionals(pros);
   };
 
   const doLogin = async () => {
