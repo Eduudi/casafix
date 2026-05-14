@@ -73,6 +73,9 @@ export default function App() {
   const [professionals, setProfessionals] = useState([]);
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
+  const [proForm, setProForm] = useState({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
+  const [proStep, setProStep] = useState(1);
+  const [proLoading, setProLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -175,6 +178,32 @@ export default function App() {
     setBooking({ date: "", time: "", address: "", payment: "pix" });
   };
 
+  const doRegisterPro = async () => {
+    if (!proForm.name || !proForm.specialty || !proForm.phone || !proForm.cpf || !proForm.city) {
+      setMsg("Preencha todos os campos obrigatórios."); return;
+    }
+    setProLoading(true); setMsg("");
+    try {
+      const proData = {
+        name: proForm.name,
+        specialty: proForm.specialty,
+        phone: proForm.phone,
+        cpf: proForm.cpf,
+        city: proForm.city,
+        bio: proForm.bio,
+        verification_status: "pending",
+        available: false,
+        rating: 0,
+      };
+      await api("professionals", { method: "POST", body: JSON.stringify(proData) });
+      setMsg("✓ Cadastro enviado! Aguarde a aprovação.");
+      setProStep(1);
+      setProForm({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
+      setTimeout(() => { setAuthMode("login"); setMsg(""); }, 3000);
+    } catch { setMsg("Erro ao enviar cadastro."); }
+    setProLoading(false);
+  };
+
   const sendChat = () => {
     if (!chatInput.trim()) return;
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -246,6 +275,126 @@ export default function App() {
 
   // AUTH
   if (screen === "auth") {
+    const SPECIALTIES = ["Eletricista", "Hidráulico", "Ar Condicionado", "Pintor", "Marceneiro", "Marido de Aluguel", "Instalador de TV", "Chaveiro", "Outro"];
+
+    // CADASTRO PROFISSIONAL
+    if (authMode === "pro") {
+      return (
+        <div style={{ ...base, paddingBottom: 0 }}>
+          <div style={{ background: `linear-gradient(160deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "28px 24px 32px" }}>
+            <button onClick={() => { setAuthMode("login"); setMsg(""); setProStep(1); }} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 13, marginBottom: 16 }}>← Voltar</button>
+            <div style={{ color: C.white, fontSize: 22, fontWeight: 800, fontFamily: "'Poppins', sans-serif" }}>Cadastro de Parceiro</div>
+            <div style={{ color: "#ffffff88", fontSize: 13, marginTop: 4 }}>Preencha seus dados para se tornar um profissional ElaResolve</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 16 }}>
+              {[1, 2, 3].map(n => (
+                <div key={n} style={{ flex: 1, height: 4, borderRadius: 4, background: proStep >= n ? C.white : "#ffffff33" }} />
+              ))}
+            </div>
+            <div style={{ color: "#ffffff88", fontSize: 12, marginTop: 6 }}>Etapa {proStep} de 3</div>
+          </div>
+
+          <div style={{ padding: 24, maxWidth: 480, margin: "0 auto" }}>
+            {msg && (
+              <div style={{ background: msg.startsWith("✓") ? C.green + "18" : C.red + "18", color: msg.startsWith("✓") ? C.green : C.red, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 14, fontWeight: 600 }}>{msg}</div>
+            )}
+
+            {/* ETAPA 1 — Dados pessoais */}
+            {proStep === 1 && (
+              <div style={{ background: C.white, borderRadius: 18, padding: 20, boxShadow: "0 2px 12px #0000000a" }}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16, fontFamily: "'Poppins', sans-serif" }}>👤 Dados Pessoais</div>
+                {[
+                  ["Nome completo *", "name", "text"],
+                  ["CPF *", "cpf", "text"],
+                  ["Cidade *", "city", "text"],
+                  ["Telefone / WhatsApp *", "phone", "tel"],
+                ].map(([label, key, type]) => (
+                  <div key={key} style={{ marginBottom: 14 }}>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 6 }}>{label}</label>
+                    <input style={input} type={type} placeholder={label.replace(" *", "")} value={proForm[key]} onChange={e => setProForm({ ...proForm, [key]: e.target.value })} />
+                  </div>
+                ))}
+                <button style={{ ...btn(), marginTop: 8 }} onClick={() => {
+                  if (!proForm.name || !proForm.cpf || !proForm.city || !proForm.phone) { setMsg("Preencha todos os campos."); return; }
+                  setMsg(""); setProStep(2);
+                }}>Próximo →</button>
+              </div>
+            )}
+
+            {/* ETAPA 2 — Especialidade e bio */}
+            {proStep === 2 && (
+              <div style={{ background: C.white, borderRadius: 18, padding: 20, boxShadow: "0 2px 12px #0000000a" }}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16, fontFamily: "'Poppins', sans-serif" }}>🔧 Especialidade</div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Especialidade *</label>
+                  <select style={{ ...input }} value={proForm.specialty} onChange={e => setProForm({ ...proForm, specialty: e.target.value })}>
+                    <option value="">Selecione sua especialidade</option>
+                    {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Descrição / Bio</label>
+                  <textarea style={{ ...input, minHeight: 100, resize: "vertical" }} placeholder="Conte sua experiência, anos de atuação, diferenciais..." value={proForm.bio} onChange={e => setProForm({ ...proForm, bio: e.target.value })} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button style={{ ...btn(C.grayMid, C.text), flex: 1, boxShadow: "none" }} onClick={() => setProStep(1)}>← Voltar</button>
+                  <button style={{ ...btn(), flex: 2 }} onClick={() => {
+                    if (!proForm.specialty) { setMsg("Selecione sua especialidade."); return; }
+                    setMsg(""); setProStep(3);
+                  }}>Próximo →</button>
+                </div>
+              </div>
+            )}
+
+            {/* ETAPA 3 — Documentos */}
+            {proStep === 3 && (
+              <div style={{ background: C.white, borderRadius: 18, padding: 20, boxShadow: "0 2px 12px #0000000a" }}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16, fontFamily: "'Poppins', sans-serif" }}>📄 Documentos</div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Foto de perfil</label>
+                  <div style={{ border: `2px dashed ${C.grayMid}`, borderRadius: 12, padding: 20, textAlign: "center", cursor: "pointer", background: C.gray }} onClick={() => document.getElementById("photoInput").click()}>
+                    {proForm.photoFile ? (
+                      <div style={{ color: C.green, fontWeight: 600 }}>✓ {proForm.photoFile.name}</div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
+                        <div style={{ color: C.muted, fontSize: 13 }}>Clique para adicionar foto</div>
+                      </>
+                    )}
+                  </div>
+                  <input id="photoInput" type="file" accept="image/*" style={{ display: "none" }} onChange={e => setProForm({ ...proForm, photoFile: e.target.files[0] })} />
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Documento (RG ou CPF)</label>
+                  <div style={{ border: `2px dashed ${C.grayMid}`, borderRadius: 12, padding: 20, textAlign: "center", cursor: "pointer", background: C.gray }} onClick={() => document.getElementById("docInput").click()}>
+                    {proForm.docFile ? (
+                      <div style={{ color: C.green, fontWeight: 600 }}>✓ {proForm.docFile.name}</div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>📎</div>
+                        <div style={{ color: C.muted, fontSize: 13 }}>Clique para anexar documento</div>
+                      </>
+                    )}
+                  </div>
+                  <input id="docInput" type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={e => setProForm({ ...proForm, docFile: e.target.files[0] })} />
+                </div>
+                <div style={{ background: `${C.purple}11`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: C.purple, marginBottom: 4 }}>🛡️ Seus dados estão seguros</div>
+                  <div style={{ color: C.muted, fontSize: 12 }}>Documentos usados apenas para verificação. Após aprovação você aparece no app.</div>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button style={{ ...btn(C.grayMid, C.text), flex: 1, boxShadow: "none" }} onClick={() => setProStep(2)}>← Voltar</button>
+                  <button style={{ ...btn(), flex: 2 }} onClick={doRegisterPro} disabled={proLoading}>
+                    {proLoading ? "Enviando..." : "✓ Enviar cadastro"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // LOGIN / CADASTRO CLIENTE
     return (
       <div style={{ ...base, paddingBottom: 0 }}>
         <div style={{ background: `linear-gradient(160deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "50px 24px 40px", textAlign: "center" }}>
@@ -275,6 +424,12 @@ export default function App() {
           <button style={{ ...btn(C.purpleBg, C.purple), marginTop: 12, boxShadow: "none" }} onClick={() => { setUser({ name: "Ana", email: "ana@demo.com" }); setScreen("home"); }}>
             Entrar como visitante
           </button>
+          <div style={{ textAlign: "center", marginTop: 20, paddingTop: 20, borderTop: `1px solid ${C.grayMid}` }}>
+            <div style={{ color: C.muted, fontSize: 13, marginBottom: 10 }}>É um profissional?</div>
+            <button style={{ ...btn(`${C.purple}18`, C.purple), boxShadow: "none" }} onClick={() => { setAuthMode("pro"); setMsg(""); setProStep(1); }}>
+              🔧 Quero ser parceiro ElaResolve
+            </button>
+          </div>
         </div>
       </div>
     );
