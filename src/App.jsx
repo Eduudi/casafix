@@ -178,12 +178,31 @@ export default function App() {
     setBooking({ date: "", time: "", address: "", payment: "pix" });
   };
 
+  const uploadFile = async (file, folder) => {
+    if (!file) return null;
+    const ext = file.name.split(".").pop();
+    const fileName = `${folder}/${Date.now()}.${ext}`;
+    const res = await fetch(`${SUPA_URL}/storage/v1/object/professional-docs/${fileName}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+    if (!res.ok) return null;
+    return `${SUPA_URL}/storage/v1/object/public/professional-docs/${fileName}`;
+  };
+
   const doRegisterPro = async () => {
     if (!proForm.name || !proForm.specialty || !proForm.phone || !proForm.cpf || !proForm.city) {
       setMsg("Preencha todos os campos obrigatórios."); return;
     }
     setProLoading(true); setMsg("");
     try {
+      const photoUrl = await uploadFile(proForm.photoFile, "photos");
+      const docUrl = await uploadFile(proForm.docFile, "documents");
       const proData = {
         name: proForm.name,
         specialty: proForm.specialty,
@@ -191,6 +210,8 @@ export default function App() {
         phone: proForm.phone,
         cpf: proForm.cpf,
         city: proForm.city,
+        photo_url: photoUrl,
+        doc_url: docUrl,
         verification_status: "pending",
         available: false,
         rating: 0,
