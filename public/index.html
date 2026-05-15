@@ -2,10 +2,44 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0A0A14" />
-    <title>CASAFIX</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0A0A14}</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#6B21E8" />
+    <meta name="description" content="ElaResolve - Cuidado & Confiança. Serviços residenciais na palma da mão." />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ElaResolve" />
+
+    <!-- Android PWA -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="ElaResolve" />
+    <meta property="og:description" content="Cuidado & Confiança - Serviços residenciais" />
+    <meta property="og:type" content="website" />
+
+    <title>ElaResolve</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #6B21E8; }
+      #root { min-height: 100vh; }
+    </style>
   </head>
-  <body><div id="root"></div></body>
+  <body>
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(() => console.log('SW registrado'))
+            .catch(() => console.log('SW erro'));
+        });
+      }
+    </script>
+  </body>
 </html>
