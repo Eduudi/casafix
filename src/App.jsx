@@ -187,20 +187,34 @@ export default function App() {
       const proData = {
         name: proForm.name,
         specialty: proForm.specialty,
+        bio: proForm.bio || "",
         phone: proForm.phone,
         cpf: proForm.cpf,
         city: proForm.city,
-        bio: proForm.bio,
         verification_status: "pending",
         available: false,
         rating: 0,
       };
-      await api("professionals", { method: "POST", body: JSON.stringify(proData) });
-      setMsg("✓ Cadastro enviado! Aguarde a aprovação.");
-      setProStep(1);
-      setProForm({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
-      setTimeout(() => { setAuthMode("login"); setMsg(""); }, 3000);
-    } catch { setMsg("Erro ao enviar cadastro."); }
+      const res = await fetch(`${SUPA_URL}/rest/v1/professionals`, {
+        method: "POST",
+        headers: {
+          apikey: SUPA_KEY,
+          Authorization: `Bearer ${SUPA_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(proData),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setMsg("✓ Cadastro enviado! Aguarde a aprovação.");
+        setProStep(1);
+        setProForm({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
+        setTimeout(() => { setAuthMode("login"); setMsg(""); }, 3000);
+      } else {
+        setMsg("Erro: " + (result?.message || result?.error || JSON.stringify(result)));
+      }
+    } catch (e) { setMsg("Erro ao enviar cadastro: " + e.message); }
     setProLoading(false);
   };
 
