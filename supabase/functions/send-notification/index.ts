@@ -3,7 +3,7 @@ import { create } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
 const FIREBASE_PROJECT_ID = "elaresolve-2f835";
 const SUPA_URL = "https://pttbpywteivrcnvhpmxi.supabase.co";
-const SUPA_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SUPA_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SVC_ROLE_KEY") || "";
 const SERVICE_ACCOUNT_JSON = Deno.env.get("FIREBASE_SERVICE_ACCOUNT") || "";
 
 const cors = {

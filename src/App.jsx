@@ -62,7 +62,7 @@ const setupPushNotifications = async (userEmail) => {
 // Envia notificação via Supabase Edge Function
 const sendPushNotification = async (targetEmail, title, body, type = "general") => {
   try {
-    await fetch(`${SUPA_URL}/functions/v1/send-notification`, {
+    await fetch(`${SUPA_URL}/functions/v1/dynamic-endpoint`, {
       method: "POST",
       headers: {
         apikey: SUPA_KEY,
