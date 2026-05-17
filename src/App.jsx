@@ -6,6 +6,48 @@ poppinsLink.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@300;40
 poppinsLink.rel = "stylesheet";
 document.head.appendChild(poppinsLink);
 
+// Firebase config
+const FB_CONFIG = {
+  apiKey: "AIzaSyAS-TYke-ipjn28cBqVx-urjbXDh0ky1Fw",
+  authDomain: "elaresolve-2f835.firebaseapp.com",
+  projectId: "elaresolve-2f835",
+  storageBucket: "elaresolve-2f835.firebasestorage.app",
+  messagingSenderId: "456455241718",
+  appId: "1:456455241718:web:b4adfe159f4e85024991d7"
+};
+
+const VAPID_KEY = "BFplnTfggagpYRJeL52sRmcM-OF7kjBcp42sfMHof1YSwMN-HITlHubUxwBbEEvXZxCsss-ynY_RGTzWFwNbsTg";
+
+// Inicializar Firebase para notificações push
+let messaging = null;
+const initFirebase = async () => {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js");
+    const app = initializeApp(FB_CONFIG);
+    messaging = getMessaging(app);
+    return { getToken, onMessage };
+  } catch { return null; }
+};
+
+const requestNotificationPermission = async () => {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return null;
+    const fb = await initFirebase();
+    if (!fb) return null;
+    const { getToken } = fb;
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    return token;
+  } catch { return null; }
+};
+
+const sendPushNotification = async (title, body) => {
+  if (Notification.permission === "granted") {
+    new Notification(title, { body, icon: "/icon-192.png", badge: "/icon-192.png" });
+  }
+};
+
 const SUPA_URL = "https://pttbpywteivrcnvhpmxi.supabase.co";
 const SUPA_KEY = "sb_publishable_DHepCUr-K6nqE9YFPGtSXA_niYxTOsK";
 
@@ -126,6 +168,8 @@ export default function App() {
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
         setScreen("home");
+        // Solicitar permissão de notificação após login
+        setTimeout(() => requestNotificationPermission(), 2000);
       } else {
         setMsg("E-mail ou senha incorretos.");
       }
@@ -173,6 +217,8 @@ export default function App() {
     };
     await api("orders", { method: "POST", body: JSON.stringify(order) });
     setOrders(prev => [...prev, { ...order, id: Date.now() }]);
+    // Notificação de confirmação para o cliente
+    sendPushNotification("✅ Pedido confirmado!", `Seu agendamento de ${selected?.name} foi realizado com sucesso!`);
     setScreen("orders");
     setBookingStep(1);
     setBooking({ date: "", time: "", address: "", payment: "pix" });
