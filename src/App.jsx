@@ -18,34 +18,60 @@ const FB_CONFIG = {
 
 const VAPID_KEY = "BFplnTfggagpYRJeL52sRmcM-OF7kjBcp42sfMHof1YSwMN-HITlHubUxwBbEEvXZxCsss-ynY_RGTzWFwNbsTg";
 
-// Inicializar Firebase para notificações push
+// Firebase — notificações push
 let messaging = null;
 const initFirebase = async () => {
   try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
     const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js");
-    const app = initializeApp(FB_CONFIG);
+    const app = getApps().length ? getApps()[0] : initializeApp(FB_CONFIG);
     messaging = getMessaging(app);
     return { getToken, onMessage };
   } catch { return null; }
 };
 
-const requestNotificationPermission = async () => {
+// Pede permissão, obtém token FCM e salva no Supabase
+const setupPushNotifications = async (userEmail) => {
   try {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return null;
+    if (permission !== "granted") return;
     const fb = await initFirebase();
-    if (!fb) return null;
-    const { getToken } = fb;
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-    return token;
-  } catch { return null; }
+    if (!fb || !messaging) return;
+    const token = await fb.getToken(messaging, { vapidKey: VAPID_KEY });
+    if (!token || !userEmail) return;
+    // Salva token no Supabase (tabela fcm_tokens)
+    await fetch(`${SUPA_URL}/rest/v1/fcm_tokens`, {
+      method: "POST",
+      headers: {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates",
+      },
+      body: JSON.stringify({ email: userEmail, token, updated_at: new Date().toISOString() }),
+    });
+    // Escuta notificações com app aberto
+    fb.onMessage(messaging, (payload) => {
+      const { title, body } = payload.notification || {};
+      if (title) new Notification(title, { body, icon: "/icon-192.png" });
+    });
+  } catch (e) { console.warn("Push setup error:", e); }
 };
 
-const sendPushNotification = async (title, body) => {
-  if (Notification.permission === "granted") {
-    new Notification(title, { body, icon: "/icon-192.png", badge: "/icon-192.png" });
-  }
+// Envia notificação via Supabase Edge Function
+const sendPushNotification = async (targetEmail, title, body, type = "general") => {
+  try {
+    await fetch(`${SUPA_URL}/functions/v1/send-notification`, {
+      method: "POST",
+      headers: {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ targetEmail, title, body, type }),
+    });
+  } catch (e) { console.warn("Push send error:", e); }
 };
 
 const SUPA_URL = "https://pttbpywteivrcnvhpmxi.supabase.co";
@@ -168,8 +194,8 @@ export default function App() {
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
         setScreen("home");
-        // Solicitar permissão de notificação após login
-        setTimeout(() => requestNotificationPermission(), 2000);
+        // Configurar push notifications com email do usuário
+        setTimeout(() => setupPushNotifications(form.email), 2000);
       } else {
         setMsg("E-mail ou senha incorretos.");
       }
@@ -217,8 +243,13 @@ export default function App() {
     };
     await api("orders", { method: "POST", body: JSON.stringify(order) });
     setOrders(prev => [...prev, { ...order, id: Date.now() }]);
-    // Notificação de confirmação para o cliente
-    sendPushNotification("✅ Pedido confirmado!", `Seu agendamento de ${selected?.name} foi realizado com sucesso!`);
+    // Notificação real para o cliente
+    sendPushNotification(
+      user?.email,
+      "✅ Pedido confirmado!",
+      `Seu agendamento de ${selected?.name} foi realizado. Aguarde a confirmação do profissional.`,
+      "order_confirmed"
+    );
     setScreen("orders");
     setBookingStep(1);
     setBooking({ date: "", time: "", address: "", payment: "pix" });
