@@ -20,14 +20,24 @@ const VAPID_KEY = "BFplnTfggagpYRJeL52sRmcM-OF7kjBcp42sfMHof1YSwMN-HITlHubUxwBbE
 
 // Firebase — notificações push
 let messaging = null;
+let _fbInit = null;
 const initFirebase = async () => {
+  if (_fbInit) return _fbInit;
   try {
     const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
     const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js");
     const app = getApps().length ? getApps()[0] : initializeApp(FB_CONFIG);
-    messaging = getMessaging(app);
-    return { getToken, onMessage };
-  } catch { return null; }
+    // Registra SW do Firebase explicitamente
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+      messaging = getMessaging(app);
+    } else {
+      messaging = getMessaging(app);
+    }
+    _fbInit = { getToken, onMessage };
+    return _fbInit;
+  } catch (e) { console.warn("Firebase init:", e); return null; }
 };
 
 // Pede permissão, obtém token FCM e salva no Supabase
