@@ -48,7 +48,12 @@ const setupPushNotifications = async (userEmail) => {
     if (permission !== "granted") return;
     const fb = await initFirebase();
     if (!fb || !messaging) return;
-    const token = await fb.getToken(messaging, { vapidKey: VAPID_KEY });
+    // Passa o serviceWorkerRegistration explicitamente
+    const swReg = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
+    const token = await fb.getToken(messaging, { 
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg
+    });
     if (!token || !userEmail) return;
     // Salva token no Supabase (tabela fcm_tokens)
     await fetch(`${SUPA_URL}/rest/v1/fcm_tokens`, {
