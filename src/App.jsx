@@ -159,7 +159,7 @@ export default function App() {
   const [proForm, setProForm] = useState({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
   const [proStep, setProStep] = useState(1);
   const [proLoading, setProLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", cpf: "", phone: "", role: "client" });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState(null);
@@ -219,13 +219,17 @@ export default function App() {
   };
 
   const doRegister = async () => {
-    if (!form.name || !form.email || !form.password) { setMsg("Preencha todos os campos."); return; }
+    if (!form.name || !form.email || !form.password || !form.cpf || !form.phone) { setMsg("Preencha todos os campos."); return; }
     setLoading(true); setMsg("");
     try {
       const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {
         method: "POST",
         headers: { apikey: SUPA_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, password: form.password }),
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          data: { role: form.role, full_name: form.name, cpf: form.cpf, phone: form.phone },
+        }),
       });
       const data = await res.json();
       if (data.id || data.user) {
@@ -541,7 +545,22 @@ export default function App() {
             <div style={{ background: msg.startsWith("✓") ? C.green + "18" : C.red + "18", color: msg.startsWith("✓") ? C.green : C.red, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 14, fontWeight: 600 }}>{msg}</div>
           )}
           {authMode === "register" && (
-            <input style={{ ...input, marginBottom: 12 }} placeholder="Seu nome completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <>
+              <input style={{ ...input, marginBottom: 12 }} placeholder="Seu nome completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <input style={{ ...input, marginBottom: 12 }} placeholder="CPF (somente números)" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} />
+              <input style={{ ...input, marginBottom: 12 }} placeholder="Telefone / WhatsApp" type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 8 }}>Você é:</div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {[["client", "👤 Cliente"], ["professional", "🔧 Profissional"]].map(([val, label]) => (
+                    <button key={val} type="button" onClick={() => setForm({ ...form, role: val })}
+                      style={{ flex: 1, padding: "12px 0", border: `2px solid ${form.role === val ? C.purple : C.grayMid}`, borderRadius: 12, background: form.role === val ? `${C.purple}12` : C.white, color: form.role === val ? C.purple : C.muted, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
           <input style={{ ...input, marginBottom: 12 }} placeholder="E-mail" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
           <input style={{ ...input, marginBottom: 20 }} placeholder="Senha" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
