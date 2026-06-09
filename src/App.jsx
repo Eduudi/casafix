@@ -156,7 +156,7 @@ export default function App() {
   const [professionals, setProfessionals] = useState([]);
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
-  const [proForm, setProForm] = useState({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
+  const [proForm, setProForm] = useState({ name: "", email: "", password: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
   const [proStep, setProStep] = useState(1);
   const [proLoading, setProLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", cpf: "", phone: "", role: "client" });
@@ -292,14 +292,44 @@ export default function App() {
   };
 
   const doRegisterPro = async () => {
-    if (!proForm.name || !proForm.specialty || !proForm.phone || !proForm.cpf || !proForm.city) {
+    if (!proForm.name || !proForm.specialty || !proForm.phone || !proForm.cpf || !proForm.city || !proForm.email || !proForm.password) {
       setMsg("Preencha todos os campos obrigatórios."); return;
     }
     setProLoading(true); setMsg("");
     try {
-      const photoUrl = await uploadFile(proForm.photoFile, "photos");
-      const docUrl = await uploadFile(proForm.docFile, "documents");
+      // 1. Criar conta no auth — o trigger do banco cria profiles automaticamente
+      const signUpRes = await fetch(`${SUPA_URL}/auth/v1/signup`, {
+        method: "POST",
+        headers: {
+          apikey: SUPA_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: proForm.email,
+          password: proForm.password,
+          data: {
+            role: "professional",
+            full_name: proForm.name,
+            cpf: proForm.cpf,
+            phone: proForm.phone,
+          },
+        }),
+      });
+      const signUpData = await signUpRes.json();
+      // O id pode vir na raiz ou dentro de user dependendo da config do Supabase
+      const userId = signUpData?.id || signUpData?.user?.id;
+      if (!signUpRes.ok || !userId) {
+        setMsg("Erro ao criar conta: " + (signUpData?.msg || signUpData?.error_description || signUpData?.message || JSON.stringify(signUpData)));
+        setProLoading(false); return;
+      }
+
+      // 2. Upload de documentos
+      const photoUrl = await uploadFile(proForm.photoFile, `photos/${userId}`);
+      const docUrl = await uploadFile(proForm.docFile, `documents/${userId}`);
+
+      // 3. Inserir em professionals com o mesmo id do auth user
       const proData = {
+        id: userId,
         name: proForm.name,
         specialty: proForm.specialty,
         bio: proForm.bio || "",
@@ -326,10 +356,11 @@ export default function App() {
       if (res.ok) {
         setMsg("✓ Cadastro enviado! Aguarde a aprovação.");
         setProStep(1);
-        setProForm({ name: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
+        setProForm({ name: "", email: "", password: "", specialty: "", phone: "", cpf: "", city: "", bio: "", docFile: null, photoFile: null });
         setTimeout(() => { setAuthMode("login"); setMsg(""); }, 3000);
       } else {
-        setMsg("Erro: " + (result?.message || result?.error || JSON.stringify(result)));
+        // Conta no auth foi criada mas o registro de profissional falhou
+        setMsg("Sua conta foi criada, mas houve um erro ao salvar o cadastro de profissional. Entre em contato com o suporte informando seu e-mail.");
       }
     } catch (e) { setMsg("Erro ao enviar cadastro: " + e.message); }
     setProLoading(false);
@@ -438,6 +469,8 @@ export default function App() {
                   ["CPF *", "cpf", "text"],
                   ["Cidade *", "city", "text"],
                   ["Telefone / WhatsApp *", "phone", "tel"],
+                  ["E-mail *", "email", "email"],
+                  ["Senha *", "password", "password"],
                 ].map(([label, key, type]) => (
                   <div key={key} style={{ marginBottom: 14 }}>
                     <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.muted, marginBottom: 6 }}>{label}</label>
@@ -445,7 +478,7 @@ export default function App() {
                   </div>
                 ))}
                 <button style={{ ...btn(), marginTop: 8 }} onClick={() => {
-                  if (!proForm.name || !proForm.cpf || !proForm.city || !proForm.phone) { setMsg("Preencha todos os campos."); return; }
+                  if (!proForm.name || !proForm.cpf || !proForm.city || !proForm.phone || !proForm.email || !proForm.password) { setMsg("Preencha todos os campos."); return; }
                   setMsg(""); setProStep(2);
                 }}>Próximo →</button>
               </div>
