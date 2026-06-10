@@ -235,7 +235,7 @@ export default function App() {
       });
       const data = await res.json();
       if (data.access_token) {
-        const payload = JSON.parse(atob(data.access_token.split(".")[1]));
+        const payload = JSON.parse(decodeURIComponent(atob(data.access_token.split(".")[1]).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")));
         const role = payload.user_metadata?.role || payload.app_metadata?.role || "client";
         const name = payload.user_metadata?.full_name || form.email.split("@")[0];
         const u = { id: payload.sub, email: form.email, name, token: data.access_token, role };
