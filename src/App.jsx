@@ -181,8 +181,14 @@ export default function App() {
     const t = setTimeout(() => {
       const saved = localStorage.getItem("elaresolve_user");
       if (saved) {
-        setUser(JSON.parse(saved));
-        setScreen("home");
+        const parsed = JSON.parse(saved);
+        if (!parsed.id) {
+          localStorage.removeItem("elaresolve_user");
+          setScreen("auth");
+        } else {
+          setUser(parsed);
+          setScreen(parsed.role === "professional" ? "pro_home" : "home");
+        }
       } else {
         setScreen("auth");
       }
@@ -231,7 +237,8 @@ export default function App() {
       if (data.access_token) {
         const payload = JSON.parse(atob(data.access_token.split(".")[1]));
         const role = payload.user_metadata?.role || payload.app_metadata?.role || "client";
-        const u = { id: payload.sub, email: form.email, name: form.email.split("@")[0], token: data.access_token, role };
+        const name = payload.user_metadata?.full_name || form.email.split("@")[0];
+        const u = { id: payload.sub, email: form.email, name, token: data.access_token, role };
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
         if (role === "professional") { loadProOrders(payload.sub); setScreen("pro_home"); }
@@ -968,7 +975,7 @@ export default function App() {
     return (
       <div style={base}>
         <div style={{ background: `linear-gradient(135deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "20px 20px 28px" }}>
-          <button onClick={() => setScreen("profile")} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 14, marginBottom: 16 }}>← Voltar</button>
+          <button onClick={() => setScreen(user?.role === "professional" ? "pro_home" : "profile")} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 14, marginBottom: 16 }}>← Voltar</button>
           <div style={{ color: C.white, fontSize: 22, fontWeight: 800 }}>Notificações</div>
         </div>
         <div style={{ padding: "16px 16px" }}>
