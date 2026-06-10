@@ -172,6 +172,10 @@ export default function App() {
     { from: "pro", text: "Olá! Posso te ajudar com algum serviço hoje?", time: "10:00" }
   ]);
   const [selectedPro, setSelectedPro] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [proOrders, setProOrders] = useState([]);
+  const [loadingProOrders, setLoadingProOrders] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -186,6 +190,26 @@ export default function App() {
     loadServices();
     return () => clearTimeout(t);
   }, []);
+
+  const loadProOrders = async (userId) => {
+    setLoadingProOrders(true);
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/orders?professional_id=eq.${userId}&order=created_at.desc`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
+    if (res.ok) setProOrders(await res.json());
+    setLoadingProOrders(false);
+  };
+
+  const loadNotifications = async (userId) => {
+    setLoadingNotifications(true);
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/notifications?user_id=eq.${userId}&order=created_at.desc`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
+    if (res.ok) setNotifications(await res.json());
+    setLoadingNotifications(false);
+  };
 
   const loadServices = async () => {
     const data = await api("services?select=*&order=name");
@@ -206,10 +230,12 @@ export default function App() {
       const data = await res.json();
       if (data.access_token) {
         const payload = JSON.parse(atob(data.access_token.split(".")[1]));
-        const u = { id: payload.sub, email: form.email, name: form.email.split("@")[0], token: data.access_token };
+        const role = payload.user_metadata?.role || payload.app_metadata?.role || "client";
+        const u = { id: payload.sub, email: form.email, name: form.email.split("@")[0], token: data.access_token, role };
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
-        setScreen("home");
+        if (role === "professional") { loadProOrders(payload.sub); setScreen("pro_home"); }
+        else setScreen("home");
         // Configurar push notifications com email do usuário
         setTimeout(() => setupPushNotifications(form.email), 2000);
       } else {
@@ -899,6 +925,75 @@ export default function App() {
     );
   }
 
+  // PRO HOME
+  if (screen === "pro_home") {
+    return (
+      <div style={base}>
+        <div style={{ background: `linear-gradient(135deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "28px 20px 36px" }}>
+          <div style={{ color: "#ffffff88", fontSize: 13, marginBottom: 4 }}>Bem-vindo de volta</div>
+          <div style={{ color: C.white, fontSize: 24, fontWeight: 800 }}>Olá, {user?.name} 👋</div>
+        </div>
+        <div style={{ padding: "16px 16px 0", marginTop: -16 }}>
+          <button onClick={() => { loadNotifications(user.id); setScreen("notifications"); }}
+            style={{ ...btn(`${C.purple}18`, C.purple), boxShadow: "none", marginBottom: 16 }}>
+            🔔 Ver notificações
+          </button>
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>Pedidos recebidos</div>
+          {loadingProOrders ? (
+            <div style={{ textAlign: "center", padding: 48, color: C.muted, fontSize: 13 }}>Carregando pedidos...</div>
+          ) : proOrders.length === 0 ? (
+            <div style={{ ...card, textAlign: "center", padding: 48 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nenhum pedido ainda</div>
+              <div style={{ color: C.muted, fontSize: 13 }}>Novos agendamentos aparecem aqui.</div>
+            </div>
+          ) : proOrders.map((o) => (
+            <div key={o.id} style={card}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{"Serviço #" + o.service_id}</div>
+                <span style={tag(C.yellow)}>Pendente</span>
+              </div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 2 }}>📅 {o.scheduled_date} às {o.scheduled_time}</div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>📍 {o.description}</div>
+              <div style={{ fontWeight: 800, color: C.purple, fontSize: 16 }}>R${o.price},00</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // NOTIFICATIONS
+  if (screen === "notifications") {
+    return (
+      <div style={base}>
+        <div style={{ background: `linear-gradient(135deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "20px 20px 28px" }}>
+          <button onClick={() => setScreen("profile")} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 14, marginBottom: 16 }}>← Voltar</button>
+          <div style={{ color: C.white, fontSize: 22, fontWeight: 800 }}>Notificações</div>
+        </div>
+        <div style={{ padding: "16px 16px" }}>
+          {loadingNotifications ? (
+            <div style={{ textAlign: "center", padding: 48, color: C.muted }}>
+              <div style={{ fontSize: 13 }}>Carregando notificações...</div>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 48, color: C.muted }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🔔</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6, color: C.text }}>Nenhuma notificação</div>
+              <div style={{ fontSize: 13 }}>Você será avisado sobre seus pedidos aqui.</div>
+            </div>
+          ) : notifications.map((n) => (
+            <div key={n.id} style={{ background: n.read ? C.white : `${C.purple}0A`, borderRadius: 14, padding: "14px 16px", marginBottom: 10, boxShadow: "0 2px 8px #00000008", borderLeft: `4px solid ${n.read ? C.grayMid : C.purple}` }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{n.title}</div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 6 }}>{n.body}</div>
+              <div style={{ color: C.muted, fontSize: 11 }}>{new Date(n.created_at).toLocaleString("pt-BR")}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // PROFILE
   return (
     <div style={base}>
@@ -910,7 +1005,9 @@ export default function App() {
       <div style={{ padding: 16, marginTop: -20 }}>
         <div style={card}>
           {["Meus endereços", "Notificações", "Segurança", "Ajuda"].map(item => (
-            <div key={item} style={{ padding: "14px 4px", borderBottom: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
+            <div key={item} onClick={() => {
+              if (item === "Notificações") { loadNotifications(user.id); setScreen("notifications"); }
+            }} style={{ padding: "14px 4px", borderBottom: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
               <span style={{ fontWeight: 600 }}>{item}</span>
               <span style={{ color: C.muted }}>›</span>
             </div>
