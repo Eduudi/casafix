@@ -205,7 +205,8 @@ export default function App() {
       });
       const data = await res.json();
       if (data.access_token) {
-        const u = { email: form.email, name: form.email.split("@")[0], token: data.access_token };
+        const payload = JSON.parse(atob(data.access_token.split(".")[1]));
+        const u = { id: payload.sub, email: form.email, name: form.email.split("@")[0], token: data.access_token };
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
         setScreen("home");
@@ -249,29 +250,54 @@ export default function App() {
   };
 
   const confirmBooking = async () => {
-    const order = {
-      service_id: selected?.id,
-      service_name: selected?.name,
-      date: booking.date,
-      time: booking.time,
-      address: booking.address,
-      payment: booking.payment,
-      status: "pending",
-      user_email: user?.email,
-      total: selected?.price_min,
-    };
-    await api("orders", { method: "POST", body: JSON.stringify(order) });
-    setOrders(prev => [...prev, { ...order, id: Date.now() }]);
-    // Notificação real para o cliente
-    sendPushNotification(
-      user?.email,
-      "✅ Pedido confirmado!",
-      `Seu agendamento de ${selected?.name} foi realizado. Aguarde a confirmação do profissional.`,
-      "order_confirmed"
-    );
-    setScreen("orders");
-    setBookingStep(1);
-    setBooking({ date: "", time: "", address: "", payment: "pix" });
+    setLoading(true); setMsg("");
+    try {
+      const order = {
+        service_id:      selected?.id,
+        professional_id: selectedPro?.id,
+        client_id:       user?.id,
+        status:          "pending",
+        scheduled_date:  booking.date,
+        scheduled_time:  booking.time,
+        price:           selected?.price_min,
+        description:     booking.address ? `Endereço: ${booking.address}` : null,
+      };
+      const res = await fetch(`${SUPA_URL}/rest/v1/orders`, {
+        method: "POST",
+        headers: {
+          apikey: SUPA_KEY,
+          Authorization: `Bearer ${SUPA_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(order),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setMsg("Erro ao confirmar pedido: " + (err?.message || err?.error || `status ${res.status}`));
+        setLoading(false); return;
+      }
+      const saved = await res.json();
+      // INSERT confirmado — atualiza UI e reseta estado
+      setOrders(prev => [...prev, saved[0] || order]);
+      setScreen("orders");
+      setBookingStep(1);
+      setBooking({ date: "", time: "", address: "", payment: "pix" });
+      // Notificação em try/catch próprio: falha aqui não afeta o feedback do pedido
+      try {
+        sendPushNotification(
+          user?.email,
+          "✅ Pedido confirmado!",
+          `Seu agendamento de ${selected?.name} foi realizado. Aguarde a confirmação do profissional.`,
+          "order_confirmed"
+        );
+      } catch (notifErr) {
+        console.warn("Notificação não enviada:", notifErr);
+      }
+    } catch (e) {
+      setMsg("Erro ao confirmar pedido: " + e.message);
+    }
+    setLoading(false);
   };
 
   const uploadFile = async (file, folder) => {
