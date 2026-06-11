@@ -488,6 +488,31 @@ export default function App() {
     fontSize: 12, fontWeight: 700, display: "inline-block",
   });
 
+  const statusTag = (status) => {
+    const map = {
+      pending:   { label: "Pendente",   color: C.yellow },
+      confirmed: { label: "Confirmado", color: C.green  },
+      completed: { label: "Concluído",  color: C.purple },
+      cancelled: { label: "Cancelado",  color: C.muted  },
+    };
+    const s = map[status] || map.pending;
+    return <span style={tag(s.color)}>{s.label}</span>;
+  };
+
+  const proNav = (
+    <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-around", padding: "10px 0 14px", zIndex: 100 }}>
+      {[{ id: "pro_home", icon: "🏠", label: "Início" }, { id: "pro_notifications", icon: "🔔", label: "Notificações" }, { id: "pro_profile", icon: "👤", label: "Perfil" }].map(n => (
+        <button key={n.id} onClick={() => {
+          if (n.id === "pro_notifications") { loadNotifications(user.id); setScreen("notifications"); }
+          else setScreen(n.id);
+        }} style={{ background: "none", border: "none", color: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
+          <span style={{ fontSize: 22 }}>{n.icon}</span>
+          <span style={{ fontSize: 11, fontWeight: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? 700 : 400 }}>{n.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
   // SPLASH
   if (screen === "splash") {
     return (
@@ -950,31 +975,6 @@ export default function App() {
       </div>
     );
   }
-
-  const statusTag = (status) => {
-    const map = {
-      pending:   { label: "Pendente",   color: C.yellow },
-      confirmed: { label: "Confirmado", color: C.green  },
-      completed: { label: "Concluído",  color: C.purple },
-      cancelled: { label: "Cancelado",  color: C.muted  },
-    };
-    const s = map[status] || map.pending;
-    return <span style={tag(s.color)}>{s.label}</span>;
-  };
-
-  const proNav = (
-    <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-around", padding: "10px 0 14px", zIndex: 100 }}>
-      {[{ id: "pro_home", icon: "🏠", label: "Início" }, { id: "pro_notifications", icon: "🔔", label: "Notificações" }, { id: "pro_profile", icon: "👤", label: "Perfil" }].map(n => (
-        <button key={n.id} onClick={() => {
-          if (n.id === "pro_notifications") { loadNotifications(user.id); setScreen("notifications"); }
-          else setScreen(n.id);
-        }} style={{ background: "none", border: "none", color: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
-          <span style={{ fontSize: 22 }}>{n.icon}</span>
-          <span style={{ fontSize: 11, fontWeight: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? 700 : 400 }}>{n.label}</span>
-        </button>
-      ))}
-    </nav>
-  );
 
   // PRO HOME
   if (screen === "pro_home") {
