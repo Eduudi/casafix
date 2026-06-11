@@ -210,7 +210,7 @@ export default function App() {
   const loadNotifications = async (userId) => {
     setLoadingNotifications(true);
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/notifications?user_id=eq.${userId}&order=created_at.desc`,
+      `${SUPA_URL}/rest/v1/notifications?user_id=eq.${userId}&order=sent_at.desc`,
       { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
     );
     if (res.ok) setNotifications(await res.json());
@@ -993,7 +993,7 @@ export default function App() {
             <div key={n.id} style={{ background: n.read ? C.white : `${C.purple}0A`, borderRadius: 14, padding: "14px 16px", marginBottom: 10, boxShadow: "0 2px 8px #00000008", borderLeft: `4px solid ${n.read ? C.grayMid : C.purple}` }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{n.title}</div>
               <div style={{ color: C.muted, fontSize: 13, marginBottom: 6 }}>{n.body}</div>
-              <div style={{ color: C.muted, fontSize: 11 }}>{new Date(n.created_at).toLocaleString("pt-BR")}</div>
+              <div style={{ color: C.muted, fontSize: 11 }}>{new Date(n.sent_at).toLocaleString("pt-BR")}</div>
             </div>
           ))}
         </div>
