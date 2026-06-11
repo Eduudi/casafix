@@ -932,6 +932,20 @@ export default function App() {
     );
   }
 
+  const proNav = (
+    <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-around", padding: "10px 0 14px", zIndex: 100 }}>
+      {[{ id: "pro_home", icon: "🏠", label: "Início" }, { id: "pro_notifications", icon: "🔔", label: "Notificações" }, { id: "pro_profile", icon: "👤", label: "Perfil" }].map(n => (
+        <button key={n.id} onClick={() => {
+          if (n.id === "pro_notifications") { loadNotifications(user.id); setScreen("notifications"); }
+          else setScreen(n.id);
+        }} style={{ background: "none", border: "none", color: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
+          <span style={{ fontSize: 22 }}>{n.icon}</span>
+          <span style={{ fontSize: 11, fontWeight: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? 700 : 400 }}>{n.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
   // PRO HOME
   if (screen === "pro_home") {
     return (
@@ -940,11 +954,7 @@ export default function App() {
           <div style={{ color: "#ffffff88", fontSize: 13, marginBottom: 4 }}>Bem-vindo de volta</div>
           <div style={{ color: C.white, fontSize: 24, fontWeight: 800 }}>Olá, {user?.name} 👋</div>
         </div>
-        <div style={{ padding: "16px 16px 0", marginTop: -16 }}>
-          <button onClick={() => { loadNotifications(user.id); setScreen("notifications"); }}
-            style={{ ...btn(`${C.purple}18`, C.purple), boxShadow: "none", marginBottom: 16 }}>
-            🔔 Ver notificações
-          </button>
+        <div style={{ padding: "16px 16px 80px", marginTop: -16 }}>
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>Pedidos recebidos</div>
           {loadingProOrders ? (
             <div style={{ textAlign: "center", padding: 48, color: C.muted, fontSize: 13 }}>Carregando pedidos...</div>
@@ -966,6 +976,24 @@ export default function App() {
             </div>
           ))}
         </div>
+        {proNav}
+      </div>
+    );
+  }
+
+  // PRO PROFILE
+  if (screen === "pro_profile") {
+    return (
+      <div style={base}>
+        <div style={{ background: `linear-gradient(135deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "28px 20px 48px", textAlign: "center" }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#ffffff22", margin: "0 auto 12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>👤</div>
+          <div style={{ color: C.white, fontWeight: 800, fontSize: 20 }}>{user?.name}</div>
+          <div style={{ color: "#ffffff88", fontSize: 13 }}>{user?.email}</div>
+        </div>
+        <div style={{ padding: "16px 16px 80px", marginTop: -20 }}>
+          <button style={{ ...btn(`${C.red}18`, C.red), boxShadow: "none" }} onClick={doLogout}>Sair da conta</button>
+        </div>
+        {proNav}
       </div>
     );
   }
@@ -975,10 +1003,12 @@ export default function App() {
     return (
       <div style={base}>
         <div style={{ background: `linear-gradient(135deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "20px 20px 28px" }}>
-          <button onClick={() => setScreen(user?.role === "professional" ? "pro_home" : "profile")} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 14, marginBottom: 16 }}>← Voltar</button>
+          {user?.role !== "professional" && (
+            <button onClick={() => setScreen("profile")} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 14, marginBottom: 16 }}>← Voltar</button>
+          )}
           <div style={{ color: C.white, fontSize: 22, fontWeight: 800 }}>Notificações</div>
         </div>
-        <div style={{ padding: "16px 16px" }}>
+        <div style={{ padding: `16px 16px ${user?.role === "professional" ? "80px" : "16px"}` }}>
           {loadingNotifications ? (
             <div style={{ textAlign: "center", padding: 48, color: C.muted }}>
               <div style={{ fontSize: 13 }}>Carregando notificações...</div>
@@ -997,6 +1027,7 @@ export default function App() {
             </div>
           ))}
         </div>
+        {user?.role === "professional" && proNav}
       </div>
     );
   }
