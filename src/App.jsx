@@ -164,6 +164,7 @@ export default function App() {
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [bookingStep, setBookingStep] = useState(1);
   const [booking, setBooking] = useState({ date: "", time: "", address: "", payment: "pix" });
   const [filterCat, setFilterCat] = useState("Todos");
@@ -207,6 +208,16 @@ export default function App() {
     setLoadingProOrders(false);
   };
 
+  const loadClientOrders = async (userId) => {
+    setLoadingOrders(true);
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/orders?client_id=eq.${userId}&select=*,professionals(name)&order=created_at.desc`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
+    if (res.ok) setOrders(await res.json());
+    setLoadingOrders(false);
+  };
+
   const loadNotifications = async (userId) => {
     setLoadingNotifications(true);
     const res = await fetch(
@@ -242,7 +253,7 @@ export default function App() {
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
         if (role === "professional") { loadProOrders(payload.sub); setScreen("pro_home"); }
-        else setScreen("home");
+        else { loadClientOrders(payload.sub); setScreen("home"); }
         // Configurar push notifications com email do usuário
         setTimeout(() => setupPushNotifications(form.email), 2000);
       } else {
@@ -898,23 +909,28 @@ export default function App() {
           <div style={{ color: C.white, fontSize: 22, fontWeight: 800 }}>Meus Pedidos</div>
         </div>
         <div style={{ padding: "16px 16px" }}>
-          {orders.length === 0 ? (
+          {loadingOrders ? (
+            <div style={{ textAlign: "center", padding: 48, color: C.muted, fontSize: 13 }}>Carregando pedidos...</div>
+          ) : orders.length === 0 ? (
             <div style={{ ...card, textAlign: "center", padding: 48 }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>📋</div>
               <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Nenhum pedido ainda</div>
               <div style={{ color: C.muted, marginBottom: 20 }}>Agende seu primeiro serviço!</div>
               <button style={btn()} onClick={() => setScreen("home")}>Ver serviços</button>
             </div>
-          ) : orders.map((o, i) => (
-            <div key={i} style={card}>
+          ) : orders.map((o) => (
+            <div key={o.id} style={card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>{o.service_name}</div>
-                <span style={tag(C.yellow)}>Pendente</span>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{"Serviço #" + o.service_id}</div>
+                {statusTag(o.status)}
               </div>
-              <div style={{ color: C.muted, fontSize: 13, marginBottom: 4 }}>📅 {o.date} às {o.time}</div>
-              <div style={{ color: C.muted, fontSize: 13, marginBottom: 10 }}>📍 {o.address}</div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 4 }}>📅 {o.scheduled_date} às {o.scheduled_time}</div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 4 }}>📍 {o.description}</div>
+              {o.professionals?.name && (
+                <div style={{ color: C.muted, fontSize: 13, marginBottom: 10 }}>👤 {o.professionals.name}</div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 800, color: C.purple, fontSize: 18 }}>R${o.total},00</span>
+                <span style={{ fontWeight: 800, color: C.purple, fontSize: 18 }}>R${o.price},00</span>
                 <button onClick={() => setScreen("chat")} style={{ background: `${C.purple}18`, color: C.purple, border: "none", borderRadius: 20, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Entrar em contato</button>
               </div>
             </div>
@@ -922,7 +938,10 @@ export default function App() {
         </div>
         <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-around", padding: "10px 0 14px", zIndex: 100 }}>
           {[{ id: "home", icon: "🏠", label: "Início" }, { id: "orders", icon: "📋", label: "Pedidos" }, { id: "chat", icon: "💬", label: "Chat" }, { id: "profile", icon: "👤", label: "Perfil" }].map(n => (
-            <button key={n.id} style={{ background: "none", border: "none", color: screen === n.id ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }} onClick={() => setScreen(n.id)}>
+            <button key={n.id} style={{ background: "none", border: "none", color: screen === n.id ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }} onClick={() => {
+              if (n.id === "orders") loadClientOrders(user.id);
+              setScreen(n.id);
+            }}>
               <span style={{ fontSize: 22 }}>{n.icon}</span>
               <span style={{ fontSize: 11, fontWeight: screen === n.id ? 700 : 400 }}>{n.label}</span>
             </button>
@@ -931,6 +950,17 @@ export default function App() {
       </div>
     );
   }
+
+  const statusTag = (status) => {
+    const map = {
+      pending:   { label: "Pendente",   color: C.yellow },
+      confirmed: { label: "Confirmado", color: C.green  },
+      completed: { label: "Concluído",  color: C.purple },
+      cancelled: { label: "Cancelado",  color: C.muted  },
+    };
+    const s = map[status] || map.pending;
+    return <span style={tag(s.color)}>{s.label}</span>;
+  };
 
   const proNav = (
     <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.grayMid}`, display: "flex", justifyContent: "space-around", padding: "10px 0 14px", zIndex: 100 }}>
@@ -968,7 +998,7 @@ export default function App() {
             <div key={o.id} style={card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{"Serviço #" + o.service_id}</div>
-                <span style={tag(C.yellow)}>Pendente</span>
+                {statusTag(o.status)}
               </div>
               <div style={{ color: C.muted, fontSize: 13, marginBottom: 2 }}>📅 {o.scheduled_date} às {o.scheduled_time}</div>
               <div style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>📍 {o.description}</div>
