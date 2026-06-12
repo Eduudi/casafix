@@ -177,6 +177,7 @@ export default function App() {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [proOrders, setProOrders] = useState([]);
   const [loadingProOrders, setLoadingProOrders] = useState(false);
+  const [selectedProOrder, setSelectedProOrder] = useState(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -216,6 +217,26 @@ export default function App() {
     );
     if (res.ok) setOrders(await res.json());
     setLoadingOrders(false);
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    const res = await fetch(`${SUPA_URL}/rest/v1/orders?id=eq.${orderId}`, {
+      method: "PATCH",
+      headers: {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setMsg(err.message || "Erro ao atualizar pedido.");
+      return false;
+    }
+    setProOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    return true;
   };
 
   const loadNotifications = async (userId) => {
@@ -995,7 +1016,7 @@ export default function App() {
               <div style={{ color: C.muted, fontSize: 13 }}>Novos agendamentos aparecem aqui.</div>
             </div>
           ) : proOrders.map((o) => (
-            <div key={o.id} style={card}>
+            <div key={o.id} style={{ ...card, cursor: "pointer" }} onClick={() => { setSelectedProOrder(o); setScreen("pro_order_detail"); }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{"Serviço #" + o.service_id}</div>
                 {statusTag(o.status)}
@@ -1005,6 +1026,47 @@ export default function App() {
               <div style={{ fontWeight: 800, color: C.purple, fontSize: 16 }}>R${o.price},00</div>
             </div>
           ))}
+        </div>
+        {proNav}
+      </div>
+    );
+  }
+
+  // PRO ORDER DETAIL
+  if (screen === "pro_order_detail" && selectedProOrder) {
+    const o = selectedProOrder;
+    return (
+      <div style={base}>
+        <div style={{ background: `linear-gradient(135deg, ${C.purple} 0%, ${C.purpleDark} 100%)`, padding: "20px 20px 28px" }}>
+          <button onClick={() => setScreen("pro_home")} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "8px 16px", cursor: "pointer", fontSize: 14, marginBottom: 16 }}>← Voltar</button>
+          <div style={{ color: C.white, fontSize: 22, fontWeight: 800 }}>Detalhe do pedido</div>
+        </div>
+        <div style={{ padding: "16px 16px 80px", marginTop: -8 }}>
+          <div style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>{"Serviço #" + o.service_id}</div>
+              {statusTag(o.status)}
+            </div>
+            {[["📅 Data", `${o.scheduled_date} às ${o.scheduled_time}`], ["📍 Endereço", o.description], ["💰 Valor", `R$${o.price},00`]].map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.grayMid}` }}>
+                <span style={{ color: C.muted, fontSize: 14 }}>{k}</span>
+                <span style={{ fontWeight: 600, fontSize: 14, maxWidth: "60%", textAlign: "right" }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          {o.status === "pending" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+              <button style={btn(C.green, C.white)} onClick={async () => {
+                const ok = await updateOrderStatus(o.id, "confirmed");
+                if (ok) { setSelectedProOrder({ ...o, status: "confirmed" }); setScreen("pro_home"); }
+              }}>✅ Aceitar pedido</button>
+              <button style={{ ...btn(`${C.red}18`, C.red), boxShadow: "none" }} onClick={async () => {
+                const ok = await updateOrderStatus(o.id, "cancelled");
+                if (ok) { setSelectedProOrder({ ...o, status: "cancelled" }); setScreen("pro_home"); }
+              }}>❌ Recusar pedido</button>
+            </div>
+          )}
+          {msg ? <div style={{ color: C.red, textAlign: "center", marginTop: 12, fontSize: 13 }}>{msg}</div> : null}
         </div>
         {proNav}
       </div>
