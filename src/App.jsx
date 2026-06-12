@@ -178,6 +178,7 @@ export default function App() {
   const [proOrders, setProOrders] = useState([]);
   const [loadingProOrders, setLoadingProOrders] = useState(false);
   const [selectedProOrder, setSelectedProOrder] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -239,6 +240,34 @@ export default function App() {
     return true;
   };
 
+  const loadUnreadCount = async (userId) => {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/notifications?user_id=eq.${userId}&read=eq.false&select=id`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, Prefer: "count=exact" } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      setUnreadCount(data.length);
+    }
+  };
+
+  const markNotificationsRead = async (userId) => {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/notifications?user_id=eq.${userId}&read=eq.false`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: SUPA_KEY,
+          Authorization: `Bearer ${SUPA_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ read: true }),
+      }
+    );
+    if (res.ok) setUnreadCount(0);
+  };
+
   const loadNotifications = async (userId) => {
     setLoadingNotifications(true);
     const res = await fetch(
@@ -246,6 +275,7 @@ export default function App() {
       { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
     );
     if (res.ok) setNotifications(await res.json());
+    await markNotificationsRead(userId);
     setLoadingNotifications(false);
   };
 
@@ -273,6 +303,7 @@ export default function App() {
         const u = { id: payload.sub, email: form.email, name, token: data.access_token, role };
         setUser(u);
         localStorage.setItem("elaresolve_user", JSON.stringify(u));
+        loadUnreadCount(payload.sub);
         if (role === "professional") { loadProOrders(payload.sub); setScreen("pro_home"); }
         else { loadClientOrders(payload.sub); setScreen("home"); }
         // Configurar push notifications com email do usuário
@@ -527,7 +558,12 @@ export default function App() {
           if (n.id === "pro_notifications") { loadNotifications(user.id); setScreen("notifications"); }
           else setScreen(n.id);
         }} style={{ background: "none", border: "none", color: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
-          <span style={{ fontSize: 22 }}>{n.icon}</span>
+          <div style={{ position: "relative" }}>
+            <span style={{ fontSize: 22 }}>{n.icon}</span>
+            {n.id === "pro_notifications" && unreadCount > 0 && (
+              <span style={{ position: "absolute", top: -4, right: -4, background: C.red, color: C.white, borderRadius: "50%", width: 16, height: 16, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</span>
+            )}
+          </div>
           <span style={{ fontSize: 11, fontWeight: (screen === n.id || (n.id === "pro_notifications" && screen === "notifications")) ? 700 : 400 }}>{n.label}</span>
         </button>
       ))}
@@ -740,7 +776,15 @@ export default function App() {
               <LogoHeart size={36} color={C.white} />
               <span style={{ color: C.white, fontWeight: 800, fontSize: 20, fontFamily: "'Poppins', sans-serif" }}>ElaResolve</span>
             </div>
-            <button onClick={doLogout} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "6px 14px", fontSize: 13, cursor: "pointer" }}>Sair</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ position: "relative" }} onClick={() => { loadNotifications(user.id); setScreen("notifications"); }}>
+                <button style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "6px 12px", fontSize: 18, cursor: "pointer" }}>🔔</button>
+                {unreadCount > 0 && (
+                  <span style={{ position: "absolute", top: -4, right: -4, background: C.red, color: C.white, borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</span>
+                )}
+              </div>
+              <button onClick={doLogout} style={{ background: "#ffffff22", border: "none", color: C.white, borderRadius: 20, padding: "6px 14px", fontSize: 13, cursor: "pointer" }}>Sair</button>
+            </div>
           </div>
           <div style={{ color: "#ffffff88", fontSize: 14, marginBottom: 4 }}>Olá, {user?.name?.split(" ")[0]} 👋</div>
           <div style={{ color: C.white, fontSize: 22, fontWeight: 800 }}>O que você precisa resolver hoje?</div>
@@ -986,6 +1030,7 @@ export default function App() {
           {[{ id: "home", icon: "🏠", label: "Início" }, { id: "orders", icon: "📋", label: "Pedidos" }, { id: "chat", icon: "💬", label: "Chat" }, { id: "profile", icon: "👤", label: "Perfil" }].map(n => (
             <button key={n.id} style={{ background: "none", border: "none", color: screen === n.id ? C.purple : C.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }} onClick={() => {
               if (n.id === "orders") loadClientOrders(user.id);
+              if (n.id === "home") loadUnreadCount(user.id);
               setScreen(n.id);
             }}>
               <span style={{ fontSize: 22 }}>{n.icon}</span>
